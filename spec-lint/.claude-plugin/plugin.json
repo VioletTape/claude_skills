@@ -1,0 +1,5 @@
+{
+  "name": "spec-lint",
+  "description": "Adds /spec-lint:init, /spec-lint:lint, and /spec-lint:add-hook skills for linting Markdown spec federations, interactive config setup, and pre-commit hook installation.",
+  "version": "1.0.2"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "vt-marketplace",
+  "owner": {
+    "name": "Violet Tape"
+  },
+  "plugins": [
+    {
+      "name": "md-spec",
+      "source": "./md-spec",
+      "description": "Enforces heading anchor conventions, section structure, numbered lists, and acceptance criteria format when creating or editing Markdown specification documents."
+    },
+    {
+      "name": "spec-lint",
+      "source": "./spec-lint",
+      "description": "Adds /spec-lint:init, /spec-lint:lint, and /spec-lint:add-hook skills for linting Markdown spec federations, interactive config setup, and pre-commit hook installation."
+    }
+  ]
+}

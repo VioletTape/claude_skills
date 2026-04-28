@@ -1,0 +1,5 @@
+{
+  "name": "md-spec",
+  "description": "Enforces heading anchor conventions, section structure, numbered lists, and acceptance criteria format when creating or editing Markdown specification documents.",
+  "version": "1.0.0"
+}
