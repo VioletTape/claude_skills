@@ -6,10 +6,11 @@ This repository aim to support my view it SDD for teams described on Medium [Spe
 
 The repository consist of 2 plugins now: 
 1. `md-spec` - Formatter of Markdown documents used for holding a project documentation.
-2. `spec-lint` - Deterministic linter for a Markdown spec federation. [Details](spec-lint/readme.md)
+2. `spec-lint` - Deterministic linter for a Markdown spec federation. [Details](spec-lint/README.md)
 
 ### Installation 
 
 1. Run `/plugin marketplace add https://github.com/VioletTape/claude_skills.git` in Claude Code
 2. Use `/plugin` to browse and install available plugins
 3. Navigate to `vt-marketplace`, explore and install what you need
+

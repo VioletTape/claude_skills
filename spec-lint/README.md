@@ -1,8 +1,8 @@
-# spec_lint {#root}
+# spec_lint 
 
-Deterministic linter for a Markdown spec federation. Implements the checks described in `../intro.md` and `../02.enforcement-layer.md`.
+Deterministic linter for a Markdown spec federation. 
 
-## 1. What it does {#what-it-does}
+## 1. What it does 
 
 Five checks, all driven by a single `.spec-config.yaml` at the federation root:
 
@@ -14,16 +14,16 @@ Five checks, all driven by a single `.spec-config.yaml` at the federation root:
 
 Files outside `spec_paths` are skipped for anchor/URI checks but still subject to token budgets if a budget glob matches them.
 
-## 2. Installation {#installation}
+## 2. Installation
 
-### 2.1. Prerequisites {#installation.prereqs}
+### 2.1. Prerequisites 
 
 1. Python 3.10+.
 2. `pyyaml` (required). `tiktoken` (optional — accurate token counts).
 
 The installer handles both automatically.
 
-### 2.2. Install {#installation.install}
+### 2.2. Install 
 
 After installing the plugin from the marketplace, run `/spec-lint:install` in Claude Code to bootstrap the runtime dependencies. This runs `install.py` which:
 
@@ -33,7 +33,7 @@ After installing the plugin from the marketplace, run `/spec-lint:install` in Cl
 
 The hook activates immediately (no restart needed).
 
-### 2.3. Options {#installation.options}
+### 2.3. Options 
 
 | Flag | Effect |
 |---|---|
@@ -42,19 +42,19 @@ The hook activates immediately (no restart needed).
 | `--no-deps` | Skip pip install |
 | `--uninstall` | Remove the scripts and hook |
 
-### 2.4. Update {#installation.update}
+### 2.4. Update 
 
 Re-run `/spec-lint:install` (or `install.py` directly) — it updates scripts and hook in place.
 
-## 3. Federation discovery {#discovery}
+## 3. Federation discovery 
 
 The script walks **up from the edited file's path** (not cwd) until it finds a `.spec-config.yaml` with `kind: root`. A `kind: child` config follows its `parent:` pointer (or keeps walking up). If no root is found, the script silently does nothing in hook mode and skips the file in `lint` mode.
 
 The companion `.spec-config.cache.json` is written next to the root config and stores per-file mtime + parsed anchors, so repeat sweeps stay fast.
 
-## 4. Running it {#running}
+## 4. Running it 
 
-### 4.1. Manual sweep {#running.manual}
+### 4.1. Manual sweep 
 
 ```sh
 # Lint specific files (federation root auto-discovered per file)
@@ -71,11 +71,11 @@ Flags:
 1. `--format text|json` — defaults to `text`.
 2. `--config PATH` — explicit `.spec-config.yaml`; skips walk-up discovery.
 
-### 4.2. Claude Code hook {#running.hook}
+### 4.2. Claude Code hook 
 
 After installation the hook runs automatically on every `Edit` or `Write`. When findings exist it emits `{"decision":"block","reason":"..."}` so Claude sees the violations before continuing. Exit is always `0` — a missing or malformed config never breaks Claude's flow.
 
-### 4.3. Claude Code skills {#running.skill}
+### 4.3. Claude Code skills
 
 Use `/spec-lint:lint` to run the linter interactively on named files, the current file, or the whole federation. The skill parses JSON output and offers targeted fixes per check type.
 
@@ -83,7 +83,7 @@ Use `/spec-lint:add-hook` to wire pre-commit hooks into every git repo found und
 
 Use `/spec-lint:init` to create `.spec-config.yaml` interactively. It discovers all git repos under a chosen root, analyses each `CLAUDE.md` to pre-populate spec paths and namespace, walks through a fixed question sequence in chat, then writes a root config plus `kind: child` configs for any additional repos selected. Optionally installs pre-commit hooks in the same pass.
 
-### 4.4. Pre-commit hook {#running.pre-commit}
+### 4.4. Pre-commit hook 
 
 The pre-commit hook runs `spec_lint.py lint` on all staged `.md` files and blocks the commit on any error-severity finding.
 
@@ -103,13 +103,13 @@ Remove managed hooks:
 python3 ~/.local/lib/spec-lint/add_hook.py --uninstall
 ```
 
-### 4.5. CI / full-repo sweep {#running.ci}
+### 4.5. CI / full-repo sweep 
 
 ```sh
 python3 ~/.local/lib/spec-lint/spec_lint.py lint $(git ls-files '*.md')
 ```
 
-## 5. Config shape {#config}
+## 5. Config shape 
 
 ```yaml
 kind: root
@@ -168,7 +168,7 @@ checks:
     enabled: true
     severity: warning
     budgets:
-      "docs/docs/specs/modules/**/*.md": 5000
+      "docs/specs/modules/**/*.md": 5000
 
   bidirectional_coverage:
     enabled: true             # gated by tech_spec_paths and test_paths above
