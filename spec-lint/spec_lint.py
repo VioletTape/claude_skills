@@ -15,7 +15,7 @@ from typing import Iterable
 
 import yaml
 
-__version__ = "0.2.5"
+__version__ = "0.3.0"
 
 # -- table of contents -------------------------------------------------------
 # L40   SpecLinkRef          dataclass for a single // spec:// hit in a test file
@@ -454,15 +454,19 @@ class TestRefIndex:
         except OSError:
             return []
 
-        require_ns = ((self.cfg.get("uri") or {}).get("require_namespace")
-                      or self.cfg.get("namespace"))
+        local_ns = self.cfg.get("namespace")
+        project_name = self.cfg.get("name")
         refs: set[str] = set()
         for m in URI_RE.finditer(text):
             ns, target_path, anchor = m.group(1), m.group(2), m.group(3)
-            if not anchor or (require_ns and ns != require_ns):
+            if not anchor or (local_ns and ns != local_ns):
                 continue
 
-            resolved, _ = resolve_logical_uri(target_path, self.spec_files)
+            logical_path = strip_project_prefix(target_path, project_name)
+            if not logical_path:
+                continue
+
+            resolved, _ = resolve_logical_uri(logical_path, self.spec_files)
             if resolved is None:
                 continue
 
@@ -490,6 +494,21 @@ def resolve_logical_uri(logical_path: str,
         if f == target or f.endswith(suffix):
             matches.append(f)
     return (matches[0] if len(matches) == 1 else None), matches
+
+
+def strip_project_prefix(target_path: str, project_name: str | None) -> str:
+    """Strip the project-name segment from a URI logical path.
+
+    For config name='mypages', 'mypages/specs/auth' → 'specs/auth'.
+    Returns the original path unchanged when project_name is None or the
+    prefix is absent.
+    """
+    if not project_name:
+        return target_path
+    prefix = project_name + "/"
+    if target_path.startswith(prefix):
+        return target_path[len(prefix):]
+    return target_path
 
 
 def parse_anchors(path: Path) -> list[str]:
@@ -641,6 +660,8 @@ def build_resolved_link_index(
     refs: list[SpecLinkRef],
     spec_files: list[str],
     tech_spec_files: list[str] | None = None,
+    project_name: str | None = None,
+    local_namespace: str | None = None,
 ) -> tuple[dict[str, list[SpecLinkRef]], list[SpecLinkRef]]:
     """Returns (covered_docs, orphan_refs). Mutually exclusive by construction."""
     covered_docs: dict[str, list[SpecLinkRef]] = {}
@@ -651,6 +672,14 @@ def build_resolved_link_index(
         if "://" in raw:
             raw = raw.split("://", 1)[1]
         logical_path = raw.split("#")[0]
+        if local_namespace:
+            ns_prefix = local_namespace + "/"
+            if logical_path.startswith(ns_prefix):
+                logical_path = logical_path[len(ns_prefix):]
+        logical_path = strip_project_prefix(logical_path, project_name)
+        if not logical_path:
+            orphan_refs.append(ref)
+            continue
         resolved, _ = resolve_logical_uri(logical_path, spec_files)
         if resolved is None:
             # Stem fallback — prefer tech_spec_files to resolve ambiguity
@@ -815,7 +844,9 @@ def compute_coverage_v2(ctx: "FederationContext") -> dict:
 
     refs = ctx.collect_test_link_refs()
     covered_docs, orphan_refs = build_resolved_link_index(
-        refs, ctx.spec_files, tech_spec_files=tech_spec_files
+        refs, ctx.spec_files, tech_spec_files=tech_spec_files,
+        project_name=ctx.cfg.get("name"),
+        local_namespace=ctx.cfg.get("namespace"),
     )
 
     members = ctx.cfg.get("members") or {}
@@ -1000,7 +1031,9 @@ def check_anchor_hygiene(file_path: Path, lines: list[str], cfg: dict) -> list[d
 
 def check_uri_resolution(file_path: Path, lines: list[str], cfg: dict,
                          uri_cfg: dict, spec_files: list[str],
-                         cache: AnchorCache) -> list[dict]:
+                         cache: AnchorCache,
+                         project_name: str | None = None,
+                         local_namespace: str | None = None) -> list[dict]:
     findings: list[dict] = []
     require_ns = uri_cfg.get("require_namespace")
     severity = cfg.get("severity", "error")
@@ -1017,12 +1050,19 @@ def check_uri_resolution(file_path: Path, lines: list[str], cfg: dict,
                 ))
                 continue
 
-            resolved, matches = resolve_logical_uri(target_path, spec_files)
+            if not require_ns and local_namespace and ns != local_namespace:
+                continue
+
+            logical_path = strip_project_prefix(target_path, project_name)
+            if not logical_path:
+                continue
+
+            resolved, matches = resolve_logical_uri(logical_path, spec_files)
             if resolved is None:
                 if not matches:
                     findings.append(make_finding(
                         "uri_resolution", severity, str(file_path), idx,
-                        f"logical path '{target_path}' did not match any spec file",
+                        f"logical path '{logical_path}' did not match any spec file",
                         "use a logical id whose path-suffix matches an existing "
                         "spec file (the '.md' extension is implicit)",
                     ))
@@ -1030,7 +1070,7 @@ def check_uri_resolution(file_path: Path, lines: list[str], cfg: dict,
                     listed = ", ".join(matches)
                     findings.append(make_finding(
                         "uri_resolution", severity, str(file_path), idx,
-                        f"logical path '{target_path}' is ambiguous: matches {listed}",
+                        f"logical path '{logical_path}' is ambiguous: matches {listed}",
                         "make the logical id more specific so exactly one spec "
                         "file matches its path-suffix",
                     ))
@@ -1111,9 +1151,8 @@ def check_bidirectional_coverage(file_path: Path, content: str, cfg: dict,
         return findings
 
     referenced = test_ref_index.referenced_anchors()
-    namespace = ((cfg.get("uri") or {}).get("require_namespace")
-                 or cfg.get("namespace")
-                 or "spec")
+    namespace = cfg.get("namespace") or "spec"
+    project_name = cfg.get("name")
     severity = cfg.get("severity", "error")
 
     lines = content.splitlines(keepends=True)
@@ -1137,10 +1176,11 @@ def check_bidirectional_coverage(file_path: Path, content: str, cfg: dict,
         if f"{rel_path}#{anchor}" in referenced:
             continue
 
+        uri_ref_path = f"{project_name}/{rel_path}" if project_name else rel_path
         findings.append(make_finding(
             "bidirectional_coverage", severity, str(file_path), idx,
             f"acceptance-criteria anchor '#{anchor}' has no back-reference in test_paths",
-            f"add spec://{namespace}/{rel_path}#{anchor} to a test exercising this AC",
+            f"add spec://{namespace}/{uri_ref_path}#{anchor} to a test exercising this AC",
         ))
 
     return findings
@@ -1324,6 +1364,8 @@ def lint_file(file_path: Path, ctx: FederationContext) -> list[dict] | None:
         uri_cfg = cfg.get("uri") or {}
         findings.extend(check_uri_resolution(
             file_path, lines, ur, uri_cfg, ctx.spec_files, ctx.cache,
+            project_name=cfg.get("name"),
+            local_namespace=cfg.get("namespace"),
         ))
 
     if tb_applies:

@@ -1,29 +1,29 @@
-# spec_lint 
+# spec_lint {#root}
 
-Deterministic linter for a Markdown spec federation. 
+Deterministic linter for a Markdown spec federation. Implements the checks described in `../intro.md` and `../02.enforcement-layer.md`.
 
-## 1. What it does 
+## 1. What it does {#what-it-does}
 
 Five checks, all driven by a single `.spec-config.yaml` at the federation root:
 
 1. **anchor_hygiene** — enforces the `/md-spec` skill convention: H1 anchor must be `{#root}`; H2 must be a single kebab-case segment; H3+ must extend the parent anchor with one dot-separated kebab leaf; an `## Acceptance Criteria` heading must use `{#ac}`.
-2. **uri_resolution** — every `spec://<namespace>/<logical-path>[#anchor]` reference must resolve. The path is logical: `.md` is implicit, and the resolver finds the unique file in `spec_paths` whose path equals or has-as-suffix the id on a path-segment boundary. Ambiguous matches are an error.
+2. **uri_resolution** — every `spec://<namespace>/<project>/<logical-path>[#anchor]` reference must resolve. `<namespace>` and `<project>` match the `namespace` and `name` fields in the root config; the `<project>` segment is stripped before file lookup. The logical path is resolved against `spec_paths`: `.md` is implicit, the resolver finds the unique file whose path equals or has-as-suffix the id on a path-segment boundary, and ambiguous matches are an error. URIs whose namespace differs from the local federation's `namespace` are silently skipped (assumed cross-federation) unless `require_namespace` is set, in which case a mismatch is an error. Bare project references (`spec://<namespace>/<project>`) are always valid.
 3. **token_budgets** — fails when a file exceeds the budget declared for its glob. Uses `tiktoken` (cl100k_base) when installed, otherwise a `len/4` heuristic.
-4. **bidirectional_coverage** — for each `{#ac.*}` anchor in a doc whose status matches `implemented`, require at least one back-reference (`spec://<namespace>/<doc>#<anchor>`) anywhere in a `test_paths` file. Scoped to docs matching `tech_spec_paths`.
+4. **bidirectional_coverage** — for each `{#ac.*}` anchor in a doc whose status matches `implemented`, require at least one back-reference (`spec://<namespace>/<project>/<doc>#<anchor>`) anywhere in a `test_paths` file. Scoped to docs matching `tech_spec_paths`.
 5. **md_link_resolution** — every `[text](path)` navigational link must point to an existing file. Links must be relative to the current file; absolute paths (starting with `/`, `\`, or a drive letter) are flagged. URL-scheme links (`https://`, `mailto:`, etc.), image links (`![...]`), and fragment-only links (`#anchor`) are silently skipped. Links inside fenced code blocks and inline code spans are excluded.
 
 Files outside `spec_paths` are skipped for anchor/URI checks but still subject to token budgets if a budget glob matches them.
 
-## 2. Installation
+## 2. Installation {#installation}
 
-### 2.1. Prerequisites 
+### 2.1. Prerequisites {#installation.prereqs}
 
 1. Python 3.10+.
 2. `pyyaml` (required). `tiktoken` (optional — accurate token counts).
 
 The installer handles both automatically.
 
-### 2.2. Install 
+### 2.2. Install {#installation.install}
 
 After installing the plugin from the marketplace, run `/spec-lint:install` in Claude Code to bootstrap the runtime dependencies. This runs `install.py` which:
 
@@ -33,7 +33,7 @@ After installing the plugin from the marketplace, run `/spec-lint:install` in Cl
 
 The hook activates immediately (no restart needed).
 
-### 2.3. Options 
+### 2.3. Options {#installation.options}
 
 | Flag | Effect |
 |---|---|
@@ -42,19 +42,19 @@ The hook activates immediately (no restart needed).
 | `--no-deps` | Skip pip install |
 | `--uninstall` | Remove the scripts and hook |
 
-### 2.4. Update 
+### 2.4. Update {#installation.update}
 
 Re-run `/spec-lint:install` (or `install.py` directly) — it updates scripts and hook in place.
 
-## 3. Federation discovery 
+## 3. Federation discovery {#discovery}
 
 The script walks **up from the edited file's path** (not cwd) until it finds a `.spec-config.yaml` with `kind: root`. A `kind: child` config follows its `parent:` pointer (or keeps walking up). If no root is found, the script silently does nothing in hook mode and skips the file in `lint` mode.
 
 The companion `.spec-config.cache.json` is written next to the root config and stores per-file mtime + parsed anchors, so repeat sweeps stay fast.
 
-## 4. Running it 
+## 4. Running it {#running}
 
-### 4.1. Manual sweep 
+### 4.1. Manual sweep {#running.manual}
 
 ```sh
 # Lint specific files (federation root auto-discovered per file)
@@ -71,11 +71,11 @@ Flags:
 1. `--format text|json` — defaults to `text`.
 2. `--config PATH` — explicit `.spec-config.yaml`; skips walk-up discovery.
 
-### 4.2. Claude Code hook 
+### 4.2. Claude Code hook {#running.hook}
 
 After installation the hook runs automatically on every `Edit` or `Write`. When findings exist it emits `{"decision":"block","reason":"..."}` so Claude sees the violations before continuing. Exit is always `0` — a missing or malformed config never breaks Claude's flow.
 
-### 4.3. Claude Code skills
+### 4.3. Claude Code skills {#running.skill}
 
 Use `/spec-lint:lint` to run the linter interactively on named files, the current file, or the whole federation. The skill parses JSON output and offers targeted fixes per check type.
 
@@ -83,7 +83,7 @@ Use `/spec-lint:add-hook` to wire pre-commit hooks into every git repo found und
 
 Use `/spec-lint:init` to create `.spec-config.yaml` interactively. It discovers all git repos under a chosen root, analyses each `CLAUDE.md` to pre-populate spec paths and namespace, walks through a fixed question sequence in chat, then writes a root config plus `kind: child` configs for any additional repos selected. Optionally installs pre-commit hooks in the same pass.
 
-### 4.4. Pre-commit hook 
+### 4.4. Pre-commit hook {#running.pre-commit}
 
 The pre-commit hook runs `spec_lint.py lint` on all staged `.md` files and blocks the commit on any error-severity finding.
 
@@ -103,18 +103,18 @@ Remove managed hooks:
 python3 ~/.local/lib/spec-lint/add_hook.py --uninstall
 ```
 
-### 4.5. CI / full-repo sweep 
+### 4.5. CI / full-repo sweep {#running.ci}
 
 ```sh
 python3 ~/.local/lib/spec-lint/spec_lint.py lint $(git ls-files '*.md')
 ```
 
-## 5. Config shape 
+## 5. Config shape {#config}
 
 ```yaml
 kind: root
-name: your-system
-namespace: your-system          # used in spec://your-domain/... URIs
+name: your-system               # project segment in spec://your-domain/your-system/... URIs
+namespace: your-domain          # namespace segment in spec://your-domain/... URIs
 
 # Federation members — declare all repos even for single-repo projects.
 # role: specs  = source of truth for intent
@@ -140,7 +140,8 @@ exclude:
 
 uri:
   scheme: "spec://"
-  require_namespace: your-system
+  # require_namespace: your-domain   # optional — omit to allow cross-federation refs;
+                                     # set to enforce that all spec:// URIs use this namespace
 
 # Subset of spec_paths containing acceptance criteria linked to code.
 # Only docs with '> Status: Implemented' are enforced; others are silent.
@@ -168,7 +169,7 @@ checks:
     enabled: true
     severity: warning
     budgets:
-      "docs/specs/modules/**/*.md": 5000
+      "docs/docs/specs/modules/**/*.md": 5000
 
   bidirectional_coverage:
     enabled: true             # gated by tech_spec_paths and test_paths above
