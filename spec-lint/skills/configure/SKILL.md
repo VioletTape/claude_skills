@@ -1,9 +1,9 @@
 ---
-name: init
+name: configure
 description: Guided interactive setup of .spec-config.yaml for a repo or monorepo federation. Discovers git repos, analyses CLAUDE.md files to pre-populate answers, walks the user through a fixed question sequence, then writes root + child configs and optionally installs git hooks.
 ---
 
-# spec-lint:init
+# spec-lint:configure
 
 Interactively create `.spec-config.yaml` configuration for a spec-lint federation.
 One root config is always created; child configs are created for every other repo selected.

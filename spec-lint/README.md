@@ -81,7 +81,7 @@ Use `/spec-lint:lint` to run the linter interactively on named files, the curren
 
 Use `/spec-lint:add-hook` to wire pre-commit hooks into every git repo found under a directory (see §4.4).
 
-Use `/spec-lint:init` to create `.spec-config.yaml` interactively. It discovers all git repos under a chosen root, analyses each `CLAUDE.md` to pre-populate spec paths and namespace, walks through a fixed question sequence in chat, then writes a root config plus `kind: child` configs for any additional repos selected. Optionally installs pre-commit hooks in the same pass.
+Use `/spec-lint:configure` to create `.spec-config.yaml` interactively. It discovers all git repos under a chosen root, analyses each `CLAUDE.md` to pre-populate spec paths and namespace, walks through a fixed question sequence in chat, then writes a root config plus `kind: child` configs for any additional repos selected. Optionally installs pre-commit hooks in the same pass.
 
 ### 4.4. Pre-commit hook {#running.pre-commit}
 
@@ -183,7 +183,7 @@ checks:
 
 1. **`/md-spec`** — applies the canonical anchor convention to a doc. Running this on any spec satisfies `anchor_hygiene` by construction.
 2. **`/spec-lint:install`** — bootstraps the plugin after marketplace installation: runs `install.py` to copy scripts, install deps, and wire the Claude Code hook.
-3. **`/spec-lint:init`** — guided interactive setup of `.spec-config.yaml` for a repo or monorepo federation. Discovers git repos, analyses `CLAUDE.md` files to pre-populate answers, asks a fixed sequence of structured form questions, then writes root + child configs and optionally installs hooks.
+3. **`/spec-lint:configure`** — guided interactive setup of `.spec-config.yaml` for a repo or monorepo federation. Discovers git repos, analyses `CLAUDE.md` files to pre-populate answers, asks a fixed sequence of structured form questions, then writes root + child configs and optionally installs hooks.
 4. **`/spec-lint:lint`** — interactive linter invocation with guided fix offers.
 5. **`/spec-lint:add-hook`** — installs pre-commit hooks into all git repos found under a directory. Blocks commits on lint errors; idempotent; skips repos with custom hooks.
 6. **`spec-gardening`** (planned) — judgment-bearing sweeps for stale REVIEW markers, orphan anchors, etc. Calls this script for the deterministic part.
